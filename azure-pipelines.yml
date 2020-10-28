@@ -1,0 +1,194 @@
+################################################################################
+#
+# Pipeline to process Kodi game -addons
+#
+################################################################################
+
+#
+# Parameters:
+#
+#   Secret files:
+#     * privateKey - the SSH private key used to push to kodi-game repos
+#
+#   Git authorship:
+#     * TODO: Parameterize git authorship
+#
+
+# TODO: Run as a cron job
+trigger:
+- todo-disabled-for-now
+
+jobs:
+  - job: Build
+
+    pool:
+      vmImage: 'ubuntu-20.04'
+
+    strategy:
+        matrix:
+          Python38:
+            python.version: '3.8'
+
+    timeoutInMinutes: 0 # Use the maximum limit
+
+    steps:
+    # Download secure file to the agent machine
+    - task: DownloadSecureFile@1
+      name: privateKey # The name with which to reference the secure file's path on the agent
+      displayName: 'Download SSH private key'
+      inputs:
+        secureFile: 'id_rsa-azure' # The file name or GUID of the secure file
+
+    # Install SSH key prior to a build or deployment
+    - task: InstallSSHKey@0
+      inputs:
+        knownHostsEntry: "|1|5qWKb7xAKkWXfLw6ZdNAs9FzKNA=|A+W82x1iZWz+nXHgPdlIQmsEOsU= ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ=="
+        sshKeySecureFile: 'id_rsa-azure'
+
+    - script: |
+        sudo apt update
+        dpkg -s libasound2-dev || sudo apt-get install -y libasound2-dev # Required by mame
+        dpkg -s libpcap-dev || sudo apt-get install -y libpcap-dev # Required by desmume
+        #dpkg -s libsdl2-dev || sudo apt-get install -y libsdl2-dev # Required by dosbox-core
+        dpkg -s mesa-common-dev || sudo apt-get install -y mesa-common-dev # Required by craft, desmume, flycast, parallel_n64 and mupen64plus-nx
+        dpkg -s nasm || sudo apt-get install -y nasm # Required by mupen64plus-nx and parallext
+        #dpkg -s ninja-build || sudo apt-get install -y ninja-build # Required by dosbox-core
+      displayName: 'Install system dependencies'
+
+    # TODO: git authorship
+    - script: |
+        git config --global user.name "Garrett Brown"
+        git config --global user.email "themagnificentmrb@gmail.com"
+      displayName: 'Set Git authorship'
+
+    - script: |
+        git clone --branch retroplayer-19alpha2 --depth=1 https://github.com/kodi-game/xbmc.git kodi
+      displayName: 'Clone Kodi'
+
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: $(python.version)
+
+    - script: |
+        pip install -r requirements.txt
+        #pip3 install meson # Required by dosbox-core
+      displayName: 'Install Python requirements'
+
+    - template: azure-process-addon.yml
+      parameters:
+        # List add-ons in reverse order for sorted results in the kodi-game org
+        addons:
+          - yabause
+          - xmil
+          - virtualjaguar
+          #- vice # Settings broken for option API version 0
+          - vecx
+          - vbam
+          - vba-next
+          - uzem
+          #- uae4arm # Doesn't run on x86_64
+          - uae
+          - tyrquake
+          - thepowdertoy
+          - theodore
+          - tgbdual
+          - supafaust
+          - stella
+          - snes9x2010
+          - snes9x2002
+          - snes9x
+          - smsplus-gx
+          - scummvm
+          - sameboy
+          #- rustation # Disabled for now
+          - remotejoy
+          - reminiscence
+          - race
+          - quicknes
+          - quasi88
+          - px68k
+          - prosystem
+          - prboom
+          - ppsspp
+          - pokemini
+          - pocketcdg
+          - picodrive
+          - pcsx-rearmed
+          - pcem
+          - parallext
+          - parallel_n64
+          - opera
+          - openlara
+          - o2em
+          - nx
+          - nestopia
+          - mupen64plus-nx
+          - mu
+          - mrboom
+          - mgba
+          - meteor
+          - mesen
+          - meowpc98
+          - melonds
+          - mame2016
+          - mame2015
+          - mame2010
+          - mame2003_plus
+          - mame2003_midway
+          - mame2003
+          - mame2000
+          #- mame # Insanely huge and long running (hours and 50GB on a fast machine)
+          - lutro
+          - hbmame
+          - hatari
+          - handy
+          - gw
+          - gpsp
+          - genplus
+          - gambatte
+          - fuse
+          #- fsuae # No updates in 2 years, fails to build
+          - frodo
+          - freeintv
+          - freechaf
+          - fmsx
+          - flycast
+          - fceumm
+          - fbneo
+          - fbalpha2012
+          - ecwolf
+          #- dosbox-core # Requires SDL
+          - dosbox
+          #- dolphin # Disabled for now
+          - dinothawr
+          - desmume2015
+          - desmume
+          - daphne
+          - crocods
+          - craft
+          - chailove
+          - cap32
+          - cannonball
+          - bsnes-mercury-performance
+          - bsnes-mercury-balanced
+          - bsnes-mercury-accuracy
+          - boom3
+          - bnes
+          - bluemsx
+          #- blastem # Requires SDL
+          - bk
+          - beetle-wswan
+          - beetle-vb
+          - beetle-supergrafx
+          - beetle-saturn
+          - beetle-psx
+          - beetle-pcfx
+          - beetle-pce-fast
+          - beetle-ngp
+          - beetle-lynx
+          - beetle-gba
+          - beetle-bsnes
+          - atari800
+          - 81
+          - 3dengine
+          - 2048
